@@ -9,6 +9,7 @@ import cv2
 
 class FaceClassifier:
     def __init__(self, inputfile, threshold, ratio):
+        print("init recog")
         self.similarity_threshold = threshold
         self.ratio = ratio
         self.jpg = ''
@@ -19,6 +20,8 @@ class FaceClassifier:
         import signal
         import time
         import os
+
+        print("start recog")
 
         seconds = 0.1
         stop = 0
@@ -86,12 +89,12 @@ class FaceClassifier:
 
             for face in faces:
                 self.draw_name(frame, face)
-            if len(faces) > 0:
-                now = datetime.now()
-                filename = now.strftime('%Y%m%d_%H%M%S.%f')[:-3] + '.png'
-                pathname = os.path.join('asdasd', filename)
-                cv2.imwrite(pathname, frame)
-                num_capture += 1
+            # if len(faces) > 0:
+            #     now = datetime.now()
+            #     filename = now.strftime('%Y%m%d_%H%M%S.%f')[:-3] + '.jpg'
+            #     pathname = os.path.join('asdasd', filename)
+            #     cv2.imwrite(pathname, frame)
+            #     num_capture += 1
 
             elapsed_time = time.time() - start_time
 
@@ -114,6 +117,7 @@ class FaceClassifier:
 
         pdb.save_db(result_dir)
         pdb.print_persons()
+
 
     def get_face_image(self, frame, box):
         img_height, img_width = frame.shape[:2]
@@ -172,7 +176,7 @@ class FaceClassifier:
         encodings = face_recognition.face_encodings(frame, boxes)
         for i, box in enumerate(boxes):
             face_image = self.get_face_image(frame, box)
-            face = Face(str_ms + str(i) + ".png", face_image, encodings[i])
+            face = Face(str_ms + str(i) + ".jpg", face_image, encodings[i])
             face.location = box
             faces.append(face)
         return faces
@@ -254,6 +258,8 @@ if __name__ == '__main__':
     import signal
     import time
     import os
+
+    print('pppppppppppppppp')
 
     ap = argparse.ArgumentParser()
     ap.add_argument("inputfile",
