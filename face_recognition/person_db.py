@@ -1,4 +1,3 @@
-
 import os
 import cv2
 import imutils
@@ -28,10 +27,10 @@ class Face():
         boxes = face_recognition.face_locations(rgb, model="hog")
         if not boxes:
             height, width, channels = image.shape
-            top = int(height/3)
-            bottom = int(top*2)
-            left = int(width/3)
-            right = int(left*2)
+            top = int(height / 3)
+            bottom = int(top * 2)
+            left = int(width / 3)
+            right = int(left * 2)
             box = (top, right, bottom, left)
         else:
             box = boxes[0]
@@ -111,6 +110,7 @@ class Person():
         person.calculate_average_encoding()
         return person
 
+
 class PersonDB():
     def __init__(self):
         self.persons = []
@@ -165,9 +165,11 @@ class PersonDB():
         self.unknown.save_montages(dir_name)
         print("montages saved")
 
+    # 메모리에 로드되어 있는 Person 정보 파일로 저장
     def save_db(self, dir_name):
         print("Start saving persons in the directory '%s'" % dir_name)
         start_time = time.time()
+
         try:
             shutil.rmtree(dir_name)
         except OSError as e:
@@ -193,7 +195,7 @@ class PersonDB():
 
     def print_persons(self):
         print(self)
-        persons = sorted(self.persons, key=lambda obj : obj.name)
+        persons = sorted(self.persons, key=lambda obj: obj.name)
         encodings = [person.encoding for person in persons]
         for person in persons:
             distances = face_recognition.face_distance(encodings, person.encoding)

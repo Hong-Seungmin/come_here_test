@@ -11,10 +11,14 @@ app = Flask(__name__)
 faceClassifier = face_recog_classifier.FaceClassifier('http://192.168.101.21:3080/?action=stream', 0.45, 0.25)
 print('start live')
 
-
 @app.route('/')
-def index():
-    return render_template('index.html')
+def login():
+    return render_template('login.html')
+
+
+@app.route('/stream_video')
+def stream_video():
+    return render_template('stream_video.html')
 
 
 @app.route('/upload_img', methods=['POST'])
@@ -29,17 +33,56 @@ def upload_img():
     return 'OK'
 
 
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login Form"""
+    if request.method == 'GET':
+        return render_template('login.html')
+    else:
+        name = request.form['username']
+        passw = request.form['password']
+        try:
+            data = User.query.filter_by(username=name, password=passw).first()
+            if data is not None:
+                session['logged_in'] = True
+                return redirect(url_for('home'))
+            else:
+                return 'Dont Login'
+        except:
+            return "Dont Login"
+
+
+@app.route('/register/', methods=['GET', 'POST'])
+def register():
+    """Register Form"""
+    if request.method == 'POST':
+        new_user = User(
+            username=request.form['username'],
+            password=request.form['password'])
+        db.session.add(new_user)
+        db.session.commit()
+        return render_template('login.html')
+    return render_template('register.html')
+
+
+@app.route("/logout")
+def logout():
+    """Logout Form"""
+    session['logged_in'] = False
+    return redirect(url_for('home'))
+
+
 def gen():
     while True:
         jpg_bytes = faceClassifier.jpg
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + jpg_bytes + b'\r\n\r\n')
-
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':

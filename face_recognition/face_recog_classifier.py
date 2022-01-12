@@ -1,3 +1,5 @@
+import shutil
+
 from person_db import Person
 from person_db import Face
 from person_db import PersonDB
@@ -9,7 +11,6 @@ import cv2
 
 class FaceClassifier:
     def __init__(self, inputfile, threshold, ratio):
-        print("init recog")
         self.similarity_threshold = threshold
         self.ratio = ratio
         self.jpg = ''
@@ -21,13 +22,13 @@ class FaceClassifier:
         import time
         import os
 
-        print("start recog")
-
         seconds = 0.1
         stop = 0
         skip = 0
+        detectDir = 'member'
 
         src = cv2.VideoCapture(self.inputfile)
+
         if not src.isOpened():
             print("cannot open inputfile", src_file)
             exit(1)
@@ -61,6 +62,12 @@ class FaceClassifier:
 
         total_start_time = time.time()
         while self.running:
+
+            # 나중에 디텍터 모듈 따로 분리 필요
+            self.detect_member_image(detectDir, pdb)
+
+            ##############
+
             ret, frame = src.read()
             if frame is None:
                 break
@@ -79,22 +86,19 @@ class FaceClassifier:
 
             # this is core
             faces = self.detect_faces(frame)
+
             for face in faces:
                 person = self.compare_with_known_persons(face, pdb.persons)
                 if person:
                     continue
-                person = self.compare_with_unknown_faces(face, pdb.unknown.faces)
+                self.compare_with_unknown_faces(face, pdb.unknown.faces)
+
                 if person:
-                    pdb.persons.append(person)
+                    # pdb.persons.append(person)
+                    print('person len : ' + repr(pdb))
 
             for face in faces:
                 self.draw_name(frame, face)
-            # if len(faces) > 0:
-            #     now = datetime.now()
-            #     filename = now.strftime('%Y%m%d_%H%M%S.%f')[:-3] + '.jpg'
-            #     pathname = os.path.join('asdasd', filename)
-            #     cv2.imwrite(pathname, frame)
-            #     num_capture += 1
 
             elapsed_time = time.time() - start_time
 
@@ -105,7 +109,7 @@ class FaceClassifier:
             s += " -> " + repr(pdb)
             if num_capture > 0:
                 s += ", %d captures" % num_capture
-            print(s, end="    ")
+            # print(s, end="    ")
             ret, jpg = cv2.imencode('.jpg', frame)
             self.jpg = jpg.tobytes()
 
@@ -117,6 +121,23 @@ class FaceClassifier:
 
         pdb.save_db(result_dir)
         pdb.print_persons()
+
+    # 폰으로 추가된 사진 탐색 및 처리
+    def detect_member_image(self, dir_name, pdb):
+        if not os.path.isdir(dir_name):
+            return
+
+        # read persons
+        for entry in os.scandir(dir_name):
+            if entry.is_dir(follow_symlinks=False):
+                pathname = os.path.join(dir_name, entry.name)
+                person = Person.load(pathname, '')
+                if len(person.faces) == 0:
+                    continue
+                else:
+                    pdb.persons.append(person)
+                    print(entry.name)
+                    shutil.rmtree(os.path.join(dir_name, entry.name))
 
 
     def get_face_image(self, frame, box):
@@ -142,15 +163,12 @@ class FaceClassifier:
 
     # return list of dlib.rectangle
     def locate_faces(self, frame):
-        # start_time = time.time()
         if self.ratio == 1.0:
             rgb = frame[:, :, ::-1]
         else:
             small_frame = cv2.resize(frame, (0, 0), fx=self.ratio, fy=self.ratio)
             rgb = small_frame[:, :, ::-1]
         boxes = face_recognition.face_locations(rgb)
-        # elapsed_time = time.time() - start_time
-        # print("locate_faces takes %.3f seconds" % elapsed_time)
         if self.ratio == 1.0:
             return boxes
         boxes_org_size = []
@@ -191,39 +209,55 @@ class FaceClassifier:
         index = np.argmin(distances)
         min_value = distances[index]
         if min_value < self.similarity_threshold:
+
             # face of known person
-            persons[index].add_face(face)
+            # 신규 사진 추가 안함, 주석 풀면 매번 사진 추가됨
+            # persons[index].add_face(face)
             # re-calculate encoding
             persons[index].calculate_average_encoding()
             face.name = persons[index].name
             return persons[index]
 
-    def compare_with_unknown_faces(self, face, unknown_faces):
-        if len(unknown_faces) == 0:
-            # this is the first face
-            unknown_faces.append(face)
-            face.name = "unknown"
-            return
-
-        encodings = [face.encoding for face in unknown_faces]
-        distances = face_recognition.face_distance(encodings, face.encoding)
-        index = np.argmin(distances)
-        min_value = distances[index]
-        if min_value < self.similarity_threshold:
-            # two faces are similar - create new person with two faces
-            person = Person()
-            newly_known_face = unknown_faces.pop(index)
-            person.add_face(newly_known_face)
-            person.add_face(face)
-            person.calculate_average_encoding()
-            face.name = person.name
-            newly_known_face.name = person.name
-            return person
+    def compare_with_unknown_faces(self, face, unknown_faces, name=None):
+        if name is not None:
+            face.name = name
         else:
-            # unknown face
-            unknown_faces.append(face)
             face.name = "unknown"
-            return None
+        return
+        # if len(unknown_faces) == 0:
+        #     # this is the first face
+        #     unknown_faces.append(face)
+        #     if name is not None:
+        #         face.name = name
+        #     else:
+        #         face.name = "aa"
+        #     return
+        #
+        # encodings = [face.encoding for face in unknown_faces]
+        # distances = face_recognition.face_distance(encodings, face.encoding)
+        # index = np.argmin(distances)
+        # min_value = distances[index]
+        # if min_value < self.similarity_threshold:
+        #     # two faces are similar - create new person with two faces
+        #     if name is not None:
+        #         person = Person(name)
+        #     else:
+        #         person = Person()
+        #     newly_known_face = unknown_faces.pop(index)
+        #     person.add_face(newly_known_face)
+        #     # person.add_face(face)
+        #     person.calculate_average_encoding()
+        #     face.name = person.name
+        #     newly_known_face.name = person.name
+        #     return person
+        # else:
+        #     # unknown face
+        #     if name is not None:
+        #         face.name = name
+        #     else:
+        #         face.name = "aa"
+        #     unknown_faces.append(face)
+        #     return None
 
     def draw_name(self, frame, face):
         color = (0, 0, 255)
@@ -248,9 +282,14 @@ class FaceClassifier:
 
         # draw name
         # cv2.rectangle(frame, (left, bottom + 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-        font = cv2.FONT_HERSHEY_DUPLEX
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(frame, face.name, (left + 6, bottom + 30), font, 1.0,
                     (255, 255, 255), 1)
+
+
+
+
 
 
 if __name__ == '__main__':
