@@ -7,6 +7,7 @@ import face_recognition
 import numpy as np
 from datetime import datetime
 import cv2
+import os
 
 
 class FaceClassifier:
@@ -136,8 +137,7 @@ class FaceClassifier:
                     continue
                 else:
                     pdb.persons.append(person)
-                    print(entry.name)
-                    shutil.rmtree(os.path.join(dir_name, entry.name))
+                    shutil.move(os.path.join(dir_name, entry.name), os.path.join('result', entry.name))
 
 
     def get_face_image(self, frame, box):
